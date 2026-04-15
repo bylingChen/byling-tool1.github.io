@@ -1,0 +1,21 @@
+# 这是自动生成的部署工作流
+name: 部署工具页面
+
+# 当有代码推送到 main 分支时触发
+on:
+  push:
+    branches: [ main ]
+
+# 运行任务
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 部署到 GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./
