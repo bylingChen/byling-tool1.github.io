@@ -1,0 +1,50 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Excel 表格合并工具</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+body{font-family:Arial,sans-serif;max-width:800px;margin:50px auto;padding:20px}
+.upload-area{border:2px dashed #667eea;padding:40px;text-align:center;margin:20px 0;cursor:pointer}
+.upload-area:hover{background:#f0f4ff}
+.btn{padding:10px 20px;margin:10px 5px;border:none;border-radius:5px;cursor:pointer;font-size:16px}
+.btn-primary{background:#667eea;color:white}
+.btn-success{background:#11998e;color:white}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+.file-list{margin:20px 0}
+.file-item{background:#f8f9ff;padding:10px;margin:10px 0;border-radius:5px}
+#status{margin-top:20px;padding:10px;border-radius:5px}
+.success{background:#d4edda;color:#155724}
+.error{background:#f8d7da;color:#721c24}
+</style>
+</head>
+<body>
+<h1>📊 Excel 表格合并工具</h1>
+<p>上传一个或多个 Excel 文件，自动合并所有工作表</p>
+<div class="upload-area" id="uploadArea">
+<p>📁 点击或拖拽上传 Excel 文件</p>
+<p style="color:#999;font-size:14px">支持 .xlsx 和 .xls 格式，可多选</p>
+<input type="file" id="fileInput" accept=".xlsx,.xls" multiple style="display:none">
+</div>
+<div class="file-list" id="fileList"></div>
+<button class="btn btn-primary" id="mergeBtn" disabled>🔀 合并所有工作表</button>
+<button class="btn btn-success" id="downloadBtn" disabled>📥 下载合并后的文件</button>
+<div id="status"></div>
+<script>
+let uploadedFiles=[],mergedWorkbook=null;
+const uploadArea=document.getElementById('uploadArea'),fileInput=document.getElementById('fileInput'),fileList=document.getElementById('fileList'),mergeBtn=document.getElementById('mergeBtn'),downloadBtn=document.getElementById('downloadBtn'),status=document.getElementById('status');
+uploadArea.addEventListener('click',()=>fileInput.click());
+uploadArea.addEventListener('dragover',e=>{e.preventDefault();uploadArea.style.background='#e0e4ff'});
+uploadArea.addEventListener('dragleave',()=>uploadArea.style.background='');
+uploadArea.addEventListener('drop',e=>{e.preventDefault();uploadArea.style.background='';handleFiles(Array.from(e.dataTransfer.files))});
+fileInput.addEventListener('change',e=>{handleFiles(Array.from(e.target.files));fileInput.value=''});
+function handleFiles(files){const excelFiles=files.filter(file=>file.name.match(/\.(xlsx|xls)$/i));if(excelFiles.length===0){showStatus('请上传 Excel 文件 (.xlsx 或 .xls)','error');return}excelFiles.forEach(file=>{if(!uploadedFiles.find(f=>f.name===file.name))uploadedFiles.push(file)});updateFileList();showStatus('已添加 '+excelFiles.length+' 个文件','success')}
+function updateFileList(){if(uploadedFiles.length===0){fileList.innerHTML='';mergeBtn.disabled=true;return}fileList.innerHTML=uploadedFiles.map((file,index)=>'<div class="file-item">'+file.name+' <button onclick="removeFile('+index+')" style="float:right;background:#ff4757;color:white;border:none;padding:5px 10px;border-radius:3px;cursor:pointer">移除</button></div>').join('');mergeBtn.disabled=false}
+function removeFile(index){uploadedFiles.splice(index,1);updateFileList();if(uploadedFiles.length===0){mergedWorkbook=null;downloadBtn.disabled=true;status.innerHTML=''}}
+mergeBtn.addEventListener('click',async()=>{if(uploadedFiles.length===0)return;mergeBtn.disabled=true;showStatus('正在处理...','success');try{mergedWorkbook=XLSX.utils.book_new();let totalSheets=0;for(const file of uploadedFiles){const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=e=>resolve(e.target.result);reader.onerror=reject;reader.readAsArrayBuffer(file)});const workbook=XLSX.read(data,{type:'array'});workbook.SheetNames.forEach(sheetName=>{const newSheetName=file.name.replace(/\.[^/.]+$/,'')+'_'+sheetName;const worksheet=workbook.Sheets[sheetName];XLSX.utils.book_append_sheet(mergedWorkbook,worksheet,newSheetName);totalSheets++})}showStatus('✅ 合并成功！共 '+totalSheets+' 个工作表','success');downloadBtn.disabled=false}catch(error){showStatus('❌ 合并失败：'+error.message,'error')}finally{mergeBtn.disabled=uploadedFiles.length===0}});
+downloadBtn.addEventListener('click',()=>{if(!mergedWorkbook)return;const fileName='合并表格_'+Date.now()+'.xlsx';XLSX.writeFile(mergedWorkbook,fileName);showStatus('📥 文件已开始下载：'+fileName,'success')});
+function showStatus(message,type){status.textContent=message;status.className=type}
+</script>
+</body>
+</html>
